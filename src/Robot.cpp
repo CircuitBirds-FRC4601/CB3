@@ -1,35 +1,51 @@
 #include "WPILib.h"
 #include "Robot.h"
+#include <math.h>
+#include <fstream>
+
+/*******************************/
+/**********DRIVE BASE***********/
+/*******************************/
+//#define MECHANUM
+#define MECHANUM
+
+/*******************************/
+/**********BUILD FLAGS**********/
+/*******************************/
+
+//#define CLRFAULTS
+
+float rx,ry,x,y;
+//computed from 45*M_PI/180
+float sncs = 0.707106781187;
+
 
 class Robot: public IterativeRobot
 {
 
-	//RobotDrive myRobot; // robot drive system
-	//Joystick stick; // only joystick
+
+	Joystick gamePad;
 	LiveWindow *lw;
 	int autoLoopCounter;
-	//DigitalOutput Dout;
-	DigitalInput ButtonTest;
 	PowerDistributionPanel PDB;
 	ITable *hi;
 	Gyro rateGyro;
-	AnalogInput pot;
-	DigitalOutput led;
+	Talon fRight,fLeft,bRight,bLeft;
+	RobotDrive robotDrive;
 
 public:
 	Robot() :
-		//myRobot(0, 1),
-		//stick(0),
+		gamePad(0),
 		lw(NULL),
 		autoLoopCounter(0),
-		ButtonTest(0),
 		PDB(),
 		hi(),
 		rateGyro(RATEGYRO1),
-		pot(POTE),
-		led(1)
-
-
+		fRight(0),
+		fLeft(2),
+		bRight(1),
+		bLeft(3),
+		robotDrive(fLeft,bLeft,fRight,bRight)
 	{
 		PDB.InitTable(hi);
 		PDB.StartLiveWindowMode();
@@ -42,13 +58,15 @@ private:
 
 	void RobotInit()
 	{
-
 		lw = LiveWindow::GetInstance();
-		PDB.ClearStickyFaults();
+		#ifdef CLRFAULTS
+			PDB.ClearStickyFaults();
+		#endif
 	}
 	void RobotPeriodic()
 	{
 		PDB.UpdateTable();
+		writeDS();
 	}
 
 	void AutonomousInit()
@@ -68,18 +86,40 @@ private:
 
 	void TeleopPeriodic()
 	{
-		led.Set(true);
-		SmartDashboard::PutBoolean("DigitalRead",ButtonTest.Get());
-		SmartDashboard::PutNumber("PDB Temp",(float)PDB.GetTemperature());
-		SmartDashboard::PutNumber("PDB Current",PDB.GetCurrent(4));
-		SmartDashboard::PutNumber("RateGyro",(int)rateGyro.GetRate());
-		SmartDashboard::PutNumber("Pot",pot.GetValue());
+		x = gamePad.GetRawAxis(0);
+		y = gamePad.GetRawAxis(1);
+		#ifdef MECHANUM
+			rx = x * 0.707106781187 - y * 0.707106781187;
+			ry = x * 0.707106781187 + y * 0.707106781187;
+			robotDrive.MecanumDrive_Cartesian(rx,ry,rateGyro.GetRate(),rateGyro.GetAngle());
+		#endif
 	}
 
 	void TestPeriodic()
 	{
 		lw->Run();
 	}
+
+	void writeDS()
+	{
+		SmartDashboard::PutNumber("PDB Temp",(float)PDB.GetTemperature());
+		SmartDashboard::PutNumber("PDB Current",PDB.GetCurrent(4));
+		SmartDashboard::PutNumber("RateGyro",(int)rateGyro.GetRate());
+	}
+	void RotateVector(float ox, float oy)
+	{
+
+	}
+
+
 };
+
+
+
+
+
+
+
+
 
 START_ROBOT_CLASS(Robot);
