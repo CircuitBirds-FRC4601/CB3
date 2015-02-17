@@ -2,6 +2,10 @@
 #include "Robot.h"
 #include <math.h>
 #include <fstream>
+//#include <bitset>
+//#include <string>
+#include <iostream>
+#include <string>
 
 /*******************************/
 /**********DRIVE BASE***********/
@@ -13,13 +17,14 @@
 /**********BUILD FLAGS**********/
 /*******************************/
 
-//#define CLRFAULTS
-
-
+#define CLRFAULTS
 
 
 
 float rx,ry,rax,ray,lay,lax;
+int counti2c = 0;
+uint8_t data;
+long EncoderOffset1,EncoderOffset2,EncoderOffset3;
 //int lastLiftCount,currentLiftCount;
 //computed from 45*M_PI/180
 #define sncs 0.707106781187;
@@ -35,25 +40,24 @@ class Robot: public IterativeRobot
 	PowerDistributionPanel PDB;
 	ITable *hi;
 	ITable *table;
-	Gyro rateGyro;
+	//Gyro rateGyro;
 	Talon fRight,fLeft,bRight,bLeft;
 	VictorSP gearMotor,rightArm,leftArm;
 	Relay claw;
 	RobotDrive robotDrive;
 	Encoder liftPos;
 
-
 public:
 	Robot() :
 		gamePad(0),
 		leftStick(1),
 		rightStick(2),
-		lw(NULL),
+		lw(),
 		autoLoopCounter(0),
 		PDB(),
 		hi(),
 		table(),
-		rateGyro(RATEGYRO1),
+		//rateGyro(0),
 		fRight(0),
 		fLeft(2),
 		bRight(1),
@@ -63,15 +67,12 @@ public:
 		leftArm(6),
 		claw(0),
 		robotDrive(fLeft,bLeft,fRight,bRight),
-		liftPos(11,12)
+		liftPos(0,1)
 	{
 		PDB.InitTable(hi);
 		PDB.StartLiveWindowMode();
 		liftPos.InitTable(table);
 		liftPos.StartLiveWindowMode();
-		//rateGyro.InitTable(hi);
-		//rateGyro.StartLiveWindowMode();
-
 	}
 
 private:
@@ -103,40 +104,42 @@ private:
 	void TeleopInit()
 	{
 		liftPos.Reset();
+		data = 0;
 	}
 
 	void TeleopPeriodic()
 	{
+
 		lax = gamePad.GetRawAxis(0);
 		lay = gamePad.GetRawAxis(1);
 
 		rax = gamePad.GetRawAxis(2);
 		ray = gamePad.GetRawAxis(3);
 
-		gearMotor.Set(lay);
-		leftArm.Set(lax);
-		rightArm.Set(rax);
+		if (!(0 || 0)) gearMotor.Set(-lay);
+		if (!(0 || 0)) leftArm.Set(-lax);
+		if (!(0 || 0)) rightArm.Set(rax);
+
 
 		//X
 		if(gamePad.GetRawButton(1))
 		{
-			claw.Set(Relay::kForward);
-			claw.Set(Relay::kOff);
+			getHeading(0x0);
 		}
 		//A
 		if(gamePad.GetRawButton(2))
 		{
-
+			ArduinoRW(0xA);
 		}
 		//B
 		if(gamePad.GetRawButton(3))
 		{
-
+			ArduinoRW(0xB);
 		}
 		//Y
 		if(gamePad.GetRawButton(4))
 		{
-
+			ArduinoRW(0xC);
 		}
 		//LB
 		if(gamePad.GetRawButton(5))
@@ -189,41 +192,69 @@ private:
 			robotDrive.TankDrive(-leftStick.GetY(),-rightStick.GetY());
 		#endif
 
-
-
-
-
-
 			SmartDashboard::PutNumber("PDB Temp",(float)PDB.GetTemperature());
-			SmartDashboard::PutNumber("PDB Current",PDB.GetCurrent(14));
-			SmartDashboard::PutNumber("RateGyro",(int)rateGyro.GetRate());
+			SmartDashboard::PutNumber("PDB Current Gear",PDB.GetCurrent(2));
+			SmartDashboard::PutNumber("PDB Current Left Arm",PDB.GetCurrent(3));
+			SmartDashboard::PutNumber("PDB Current Right Arm",PDB.GetCurrent(12));
+			//SmartDashboard::PutNumber("RateGyro",(int)rateGyro.GetRate());
 			SmartDashboard::PutNumber("EncoderGet",liftPos.Get());
 			SmartDashboard::PutNumber("Encoder",liftPos.GetDistance());
-			SmartDashboard::PutNumber("Right Stick",rightStick.GetY());
+			//SmartDashboard::PutNumber("Right Stick",rightStick.GetY());
+			SmartDashboard::PutNumber("Lift Throttle",(int)25*lay);
+			SmartDashboard::PutNumber("I2Cmsgs",counti2c);
+			SmartDashboard::PutNumber("Last received", data);
 	}
 
 	void DisabledInit()
 	{
 
-	}
 
+	}
 
 	void DisabledPeriodic()
 	{
 
 
 	}
+
 	void TestPeriodic()
 	{
 		lw->Run();
 	}
 
+	void ArduinoRW(uint8_t payload)
+	{
+		I2C Wire(I2C::kOnboard, 4);
+
+		//std::bitset<8> data("");
+		//std::bitset<8> dataIn;
+		//bitset::count returns # of 1s
+		//bitset::size is total length
+
+		Wire.Write(0xA,payload);
+		uint8_t *buffer[1];
+		if(!Wire.ReadOnly(1, *buffer))
+		{
+			counti2c++;
+			data = *buffer[0];
+		}
+	}
+	void getHeading(uint8_t payload)
+	{
+		I2C Wire(I2C::kOnboard, 0x1E);
+
+		Wire.Write(0xA,payload);
+		uint8_t *bufferz[8];
+		if(!Wire.Read(0x03,6, *bufferz))
+		{
+			counti2c++;
+			data = *bufferz[1];
+
+		}
+	}
+
+
 };
-
-
-
-
-
 
 
 

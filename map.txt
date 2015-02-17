@@ -1,0 +1,60 @@
+/---------------------------\
+|          PORT MAP         |
+-----------------------------------------\
+										  |
+										  |
+PWM										  |
+0  Drive RF   Talon1   R Stick			  |
+1  Drive RB   Talon2   R Stick			  |
+2  Drive LF   Talon3   L Stick			  |
+3  Drive LB   Talon4   L Stick			  |
+4  Lift       V.SP1						  |
+5  R. Arm     V.SP2						  |
+6  L. Arm     V.SP3						  |
+7 										  |
+8 										  | 
+9 										  |
+								  		  |
+								  		  |
+digital I/O							  	  |
+0  R Base optical-A						  |
+1  R Base optical-B						  |
+2  L Base optical-A						  |						  
+3  L Base optical-B						  |
+4  R Arm capacitive-A					  |
+5  R Arm capacitive-B					  |
+6  L Arm capacitive-A					  |
+7  L Arm capacitive-B			  		  |
+8  Lift capacitive-A					  |
+9  Lift capacitive-B					  |
+										  |
+Expansion Digital I/O (these are not )	  |
+10 Claw closed limit IN					  |
+11 R. Arm capacitive sync IN			  |
+12 L. Arm capacitive sync IN			  |
+13										  |
+14										  |
+15										  |
+16 rPi sync pulse         OUT			  |
+17 rPi power reset line   OUT			  |
+										  |
+Relay									  |
+1    Claw FWD/REV    Vsp4				  |
+2										  |
+3										  |
+4										  |
+										  |
+										  |
+I2C  : Magnetometer : Arduino			  |
+										  |
+Arduino									  |
+3    lift T								  |
+4    lift B								  |
+5  R. Arm R								  |
+6  R. Arm L								  |
+7  R. Arm T								  |
+8  L. Arm R								  |
+9  L. Arm L								  |
+10 L. Arm T								  |
+										  |
+builtin accelerometer: detecting tilt	  |
