@@ -18,12 +18,13 @@
 //#include <string>
 #include <iostream>
 #include <string>
+#include "Joysticks.h"
 
 /*******************************/
 /**********DRIVE BASE***********/
 /*******************************/
-//#define MECHANUM
-#define TANK
+#define MECHANUM
+//#define TANK
 
 
 
@@ -106,7 +107,6 @@ public:
 		lDriveEncoder.StartLiveWindowMode();
 		rDriveEncoder.InitTable(table);
 		rDriveEncoder.StartLiveWindowMode();
-		//		accel.InitTable(table);
 }
 
 private:
@@ -114,9 +114,9 @@ private:
 	void RobotInit()
 	{
 		lw = LiveWindow::GetInstance();
-#ifdef CLRFAULTS
-		PDB.ClearStickyFaults();
-#endif
+		#ifdef CLRFAULTS
+			PDB.ClearStickyFaults();
+		#endif
 
 		liftPos.Reset();
 		rightArmEncoder.Reset();
@@ -186,62 +186,32 @@ private:
 		backup = 13;           // then backup away from tote. any subsequent motion?
 		// end of drive spec init
 	}
-	/*
-	void AutonomousPeriodic()
-	{
-		time_auton=timed.Get();
-		// get DOF state
-		liftPosn      = liftPos.GetDistance();
-		rightArmPosn  = rightArmEncoder.GetRaw();
-		leftArmPosn   = leftArmEncoder.GetRaw();
-		leftDrivePosn = lDriveEncoder.GetRaw();
-		rightDrivePosn= rDriveEncoder.GetRaw();
-		//section to determine ordering of events
-		if((rightDrivePosn > firstDrive) && (leftDrivePosn>firstDrive)){
-			behavior_auton=3; // signals move onto pickup
-		}
-		// behavior_auton set to 7 when ready to "drive2" in auton below
-		if((rightDrivePosn > secondDrive) && (leftDrivePosn>secondDrive)){
-			behavior_auton=15; // signals to lower
-		    completel=0;       // flags for the arms to complete open.
-		    completer=0;
-		}
-		// behavior_auton set to 31 when ready to "drive3" drive away
-		if((behavior_auton==15)&&(completel&&completer)){
-			behavior_auton=31;  // ready to back up and/or drive away
-		}
-		if((behavior_auton==31)&&(rightDrivePosn < secondDrive-backup) && (leftDrivePosn>secondDrive-backup)){
-			behavior_auton=65; //end..the flag for no auton action.
-		}
-		Auton(); //Auton function (at end of file)
-		autoPeriodicLoops++;
-	}
-	 */
 
-/*******************************/
-/*************AUTON*************/
-/*******************************/
 
-/*I commented out your code because I didn't have time to go through it and just wanted something quick.
- * Also, I would like to make presets for the arms, as soon as the encoders are mounted.
- * */
+	/*******************************/
+	/*************AUTON*************/
+	/*******************************/
 
-//Since the drive encoders are 360 ppr, 1 pulse = 1 degree
-//I have no idea what this should be...
-#define AUTON_POS_DIF_THRESHOLD 5000
-#define AUTON_POS_SLOWDOWN_THRESHOLD 500
-#define AUTON_POS_STOP_THRESHOLD 50
-//76 inches: 19 in/rev,360 pulses/rev
-//the 4 is arbitrary
-#define AUTON_POS_TARGET 4*360
-#define AUTON_LEFT_DRIVE_FAST .5
-#define AUTON_RIGHT_DRIVE_FAST .5
-#define AUTON_LEFT_DRIVE_SLOW .1
-#define AUTON_RIGHT_DRIVE_SLOW .1
+	/*I commented out your code because I didn't have time to go through it and just wanted something quick.
+	 * Also, I would like to make presets for the arms, as soon as the encoders are mounted.
+	 * */
+
+	//Since the drive encoders are 360 ppr, 1 pulse = 1 degree
+	//I have no idea what this should be...
+	#define AUTON_POS_DIF_THRESHOLD 5000
+	#define AUTON_POS_SLOWDOWN_THRESHOLD 10000
+	#define AUTON_POS_STOP_THRESHOLD 100
+	//76 inches: 19 in/rev,360 pulses/rev
+	//the 4 is arbitrary
+	#define AUTON_POS_TARGET 360*50
+	#define AUTON_LEFT_DRIVE_FAST .5
+	#define AUTON_RIGHT_DRIVE_FAST .55
+	#define AUTON_LEFT_DRIVE_SLOW .1
+	#define AUTON_RIGHT_DRIVE_SLOW .1
 
 	void AutonomousPeriodic()
 	{
-		int leftpos = lDriveEncoder.GetRaw() ;
+		int leftpos = -lDriveEncoder.GetRaw() ;
 		int rightpos= rDriveEncoder.GetRaw() ;
 		int diff = abs(leftpos - rightpos);
 		int avgPos = (leftpos + leftpos)/2;
@@ -282,14 +252,25 @@ private:
 	void TeleopPeriodic()
 	{
 		arduinoReset.Set(1);
-		// GET CONTROLS STATE/ DO MOTIONS
+
+		const int x = 1;
+
 		lax = gamePad.GetRawAxis(0);
 		lay = gamePad.GetRawAxis(1);
 		rax = gamePad.GetRawAxis(2);
 		ray = gamePad.GetRawAxis(3);
+
+		/*tilt*/
+
+		double xVal = accel->GetX();
+		double yVal = accel->GetY();
+		double zVal = accel->GetZ();
+
+
+
 		if ((lay>0)&&(!lifttop)&&!gamePad.GetRawButton(8))
 		{
-			lay=lay*.4;
+			lay=lay;
 			gearMotor.Set(-lay);
 		}
 		if ((lay<0)&&(!liftbottom)&&!gamePad.GetRawButton(8))
@@ -318,9 +299,8 @@ private:
 			claw.Set(ray);
 		}
 		// determine tilt
-		double xVal = accel->GetX();
-		double yVal = accel->GetY();
-		double zVal = accel->GetZ();
+
+
 		gmag = xVal*xVal+yVal*yVal+zVal*zVal;
 		if ((gmag<gmax*gmax)&&(gmag>gmin*gmin)) { //validate
 			gmag = pow(gmag,0.5);
@@ -340,6 +320,8 @@ private:
 		}
 		// end compute heading
 		//button mappings : GAMEPAD
+
+
 		//X
 		if(gamePad.GetRawButton(1))
 		{
@@ -400,14 +382,15 @@ private:
 		{
 
 		}
-#ifdef MECHANUM
-		rx = x * sncs - y * sncs;
-		ry = x * sncs + y * sncs;
-		robotDrive.MecanumDrive_Cartesian(rx,ry,rateGyro.GetRate(),rateGyro.GetAngle());
-#endif
-#ifdef TANK
-		robotDrive.TankDrive(-leftStick.GetY(),-rightStick.GetY());
-#endif
+		#ifdef MECHANUM
+			//rx = leftStick.GetX() * sncs - leftStick.GetY() * sncs;
+			//ry = leftStick.GetX() * sncs + leftStick.GetY() * sncs;
+			robotDrive.MecanumDrive_Cartesian(lax*x,lay*x,rax*x);
+		#endif
+
+		#ifdef TANK
+			robotDrive.TankDrive(-leftStick.GetY(),-rightStick.GetY());
+		#endif
 
 		SmartDashboard::PutNumber("PDB Temp",(float)PDB.GetTemperature());
 		SmartDashboard::PutNumber("PDB Current Lift",PDB.GetCurrent(2));
@@ -491,86 +474,7 @@ private:
 			printf("HI %i\n",e);
 		}
 	}
-	void Auton() { //The Auton Code, structured right now as drive-grab-drive
-		//first drive forward
-		while(behavior_auton<3) {
-			time_auton = timed.Get();
-#ifdef MECHANUM   //drive forward
-			rx = x * sncs - y * sncs;
-			ry = x * sncs + y * sncs;
-			robotDrive.MecanumDrive_Cartesian(rx,ry,rateGyro.GetRate(),rateGyro.GetAngle());
-#endif
-#ifdef TANK
-			robotDrive.TankDrive(speed_x,speed_y); //trim these values for driving straight
-#endif
-		}
-		if(behavior_auton==3){// pick up package
-			if((leftArmPosn<LarmPreset)&&(!completel)){leftArm.Set(200);
-			}
-			else{
-				completel=completel||1;
-			}
-			if((rightArmPosn<RarmPreset)&&(!completer)){rightArm.Set(200);
-			}
-			else{
-				completer=completer||1;
-			}
-			if((behavior_auton==3)&&(completel&&completer)&&(liftPosn<lift_this_high)){
-				gearMotor.Set(200); // raise up
-			}
-			else{
-				if((behavior_auton==3)&&(completel&&completer)){
-					behavior_auton=7; // drive forward since completed lift
-				}
-			}
-		}
-		if(behavior_auton==7) {
-			time_auton = timed.Get();
-#ifdef MECHANUM   //drive forward
-			rx = x * sncs - y * sncs;
-			ry = x * sncs + y * sncs;
-			robotDrive.MecanumDrive_Cartesian(rx,ry,rateGyro.GetRate(),rateGyro.GetAngle());
-#endif
-#ifdef TANK
-			robotDrive.TankDrive(speed_x,speed_y); //trim these values for driving straight
-#endif
-		}
-		if(behavior_auton==15){ // drop package and set up last drive.
-			if(liftPosn>drop_this_low){
-				gearMotor.Set(-200); // lower gantry arms
-			}
-			if((liftPosn<drop_this_low)&&(!(completel&&completer))){
-				if((leftArmPosn<LarmPreset)&&(!completel)){leftArm.Set(-200);
-				}
-				else{
-					completel=completel||1;
-				}
-				if((rightArmPosn<RarmPreset)&&(!completer)){rightArm.Set(-200);
-				}
-				else{
-					completer=completer||1;
-				}
-			}
-			if((liftPosn<drop_this_low)&&(completel&&completer)){
-				behavior_auton=31; // all clear to drive away!
-			}
-		}
-		if(behavior_auton==31){
-			time_auton = timed.Get();
-#ifdef MECHANUM   //drive backwards a bit
-			rx = x * sncs - y * sncs;
-			ry = x * sncs + y * sncs;
-			robotDrive.MecanumDrive_Cartesian(rx,ry,rateGyro.GetRate(),rateGyro.GetAngle());
-#endif
-#ifdef TANK
-			robotDrive.TankDrive(-speed_x,-speed_y); //trim these values for driving straight
-#endif
-		}
-		if (time_auton == (1.0 + delay)) { // some timeout delay structure here. Not yet implemented...to make the auton failure resistant
-		}
-		else if (time_auton > (1.0 + 2.0*delay)) {
-		}
-	}
+
 };
 START_ROBOT_CLASS(Robot);
 

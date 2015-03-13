@@ -1,0 +1,115 @@
+	void Auton() { //The Auton Code, structured right now as drive-grab-drive
+		//first drive forward
+		while(behavior_auton<3) {
+			time_auton = timed.Get();
+#ifdef McECHANUM   //drive forward
+			rx = x * sncs - y * sncs;
+			ry = x * sncs + y * sncs;
+			robotDrive.MecanumDrive_Cartesian(rx,ry,rateGyro.GetRate(),rateGyro.GetAngle());
+#endif
+#ifdef TANK
+			robotDrive.TankDrive(speed_x,speed_y); //trim these values for driving straight
+#endif
+		}
+		if(behavior_auton==3){// pick up package
+			if((leftArmPosn<LarmPreset)&&(!completel)){leftArm.Set(200);
+			}
+			else{
+				completel=completel||1;
+			}
+			if((rightArmPosn<RarmPreset)&&(!completer)){rightArm.Set(200);
+			}
+			else{
+				completer=completer||1;
+			}
+			if((behavior_auton==3)&&(completel&&completer)&&(liftPosn<lift_this_high)){
+				gearMotor.Set(200); // raise up
+			}
+			else{
+				if((behavior_auton==3)&&(completel&&completer)){
+					behavior_auton=7; // drive forward since completed lift
+				}
+			}
+		}
+		if(behavior_auton==7) {
+			time_auton = timed.Get();
+#ifdef MeECHANUM   //drive forward
+			rx = speed_x * sncs - speed_y * sncs;
+			ry = speed_x * sncs + speed_y * sncs;
+			robotDrive.MecanumDrive_Cartesian(rx,ry,,rateGyro.GetAngle());
+#endif
+#ifdef TANK
+			robotDrive.TankDrive(speed_x,speed_y); //trim these values for driving straight
+#endif
+		}
+		if(behavior_auton==15){ // drop package and set up last drive.
+			if(liftPosn>drop_this_low){
+				gearMotor.Set(-200); // lower gantry arms
+			}
+			if((liftPosn<drop_this_low)&&(!(completel&&completer))){
+				if((leftArmPosn<LarmPreset)&&(!completel)){leftArm.Set(-200);
+				}
+				else{
+					completel=completel||1;
+				}
+				if((rightArmPosn<RarmPreset)&&(!completer)){rightArm.Set(-200);
+				}
+				else{
+					completer=completer||1;
+				}
+			}
+			if((liftPosn<drop_this_low)&&(completel&&completer)){
+				behavior_auton=31; // all clear to drive away!
+			}
+		}
+		if(behavior_auton==31){
+			time_auton = timed.Get();
+#ifdef MeECHANUM   //drive backwards a bit
+			rx = x * sncs - y * sncs;
+			ry = x * sncs + y * sncs;
+			robotDrive.MecanumDrive_Cartesian(rx,ry,rateGyro.GetRate(),rateGyro.GetAngle());
+#endif
+#ifdef TANK
+			robotDrive.TankDrive(-speed_x,-speed_y); //trim these values for driving straight
+#endif
+		}
+		if (time_auton == (1.0 + delay)) { // some timeout delay structure here. Not yet implemented...to make the auton failure resistant
+		}
+		else if (time_auton > (1.0 + 2.0*delay)) {
+		}
+	}
+	
+	
+	
+	
+		/*
+	void AutonomousPeriodic()
+	{
+		time_auton=timed.Get();
+		// get DOF state
+		liftPosn      = liftPos.GetDistance();
+		rightArmPosn  = rightArmEncoder.GetRaw();
+		leftArmPosn   = leftArmEncoder.GetRaw();
+		leftDrivePosn = lDriveEncoder.GetRaw();
+		rightDrivePosn= rDriveEncoder.GetRaw();
+		//section to determine ordering of events
+		if((rightDrivePosn > firstDrive) && (leftDrivePosn>firstDrive)){
+			behavior_auton=3; // signals move onto pickup
+		}
+		// behavior_auton set to 7 when ready to "drive2" in auton below
+		if((rightDrivePosn > secondDrive) && (leftDrivePosn>secondDrive)){
+			behavior_auton=15; // signals to lower
+		    completel=0;       // flags for the arms to complete open.
+		    completer=0;
+		}
+		// behavior_auton set to 31 when ready to "drive3" drive away
+		if((behavior_auton==15)&&(completel&&completer)){
+			behavior_auton=31;  // ready to back up and/or drive away
+		}
+		if((behavior_auton==31)&&(rightDrivePosn < secondDrive-backup) && (leftDrivePosn>secondDrive-backup)){
+			behavior_auton=65; //end..the flag for no auton action.
+		}
+		Auton(); //Auton function (at end of file)
+		autoPeriodicLoops++;
+	}
+	 */

@@ -12,6 +12,6 @@
 #ifndef SRC_ROBOT_H_
 #define SRC_ROBOT_H_
 
-
+enum preset {WIDE,LONG};
 
 #endif /* SRC_ROBOT_H_ */
