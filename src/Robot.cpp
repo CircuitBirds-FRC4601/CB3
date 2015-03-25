@@ -19,7 +19,7 @@
 #include <iostream>
 #include <string>
 #include "Joysticks.h"
-
+#include "GamepadX.h"
 /*******************************/
 /**********DRIVE BASE***********/
 /*******************************/
@@ -255,10 +255,26 @@ private:
 
 		const int x = 1;
 
-		lax = gamePad.GetRawAxis(0);
-		lay = gamePad.GetRawAxis(1);
-		rax = gamePad.GetRawAxis(2);
-		ray = gamePad.GetRawAxis(3);
+		lax = gamePad.GetRawAxis(lXA);
+		lay = gamePad.GetRawAxis(lYA);
+		rax = gamePad.GetRawAxis(rXA);
+		ray = gamePad.GetRawAxis(rYA);
+
+		#ifdef SRC_GAMEPADX_H_
+		lat = gamePad.GetRawAxis(lTA);
+		rat = gamePad.GetRawAxis(rTA);
+		gamePad.SetRumble(gamePad.kLeftRumble,rat);
+		#endif
+
+		/*Threshholds*/
+		const int thresh = .5;
+
+		if(abs(lax) < thresh){
+			lax = 0;
+		}
+		if(abs(rax) < thresh){
+			rax = 0;
+		}
 
 		/*tilt*/
 
@@ -268,24 +284,27 @@ private:
 
 
 
-		if ((lay>0)&&(!lifttop)&&!gamePad.GetRawButton(8))
-		{
-			lay=lay;
-			gearMotor.Set(-lay);
-		}
-		if ((lay<0)&&(!liftbottom)&&!gamePad.GetRawButton(8))
+		if ((lay>0)&&(!lifttop)&&!gamePad.GetRawButton(RB))
 		{
 			gearMotor.Set(-lay);
 		}
-		if ((lax>0)&&(!LarmL)&&!gamePad.GetRawButton(7))
+		if ((lay<0)&&(!liftbottom)&&!gamePad.GetRawButton(RB))
+		{
+			gearMotor.Set(-lay);
+		}
+		if ((lax>0)&&(!LarmL)&&!gamePad.GetRawButton(LB))
 		{
 			leftArm.Set(-lax);
 		}
-		if ((lax<0)&&(!LarmR)&&!gamePad.GetRawButton(7))
+		if ((lax<0)&&(!LarmR)&&!gamePad.GetRawButton(LB))
 		{
 			leftArm.Set(-lax);
 		}
-		if ((rax>0)&&(!RarmR)&&!gamePad.GetRawButton(7))
+		if ((rax>0)&&(!RarmR)&&!gamePad.GetRawButton(LB))
+		{
+			rightArm.Set(rax);
+		}
+		if ((rax<0)&&(!RarmR)&&!gamePad.GetRawButton(LB))
 		{
 			rightArm.Set(rax);
 		}
@@ -293,14 +312,9 @@ private:
 		{
 			rightArm.Set(rax);
 		}
-		if ((ray<0)&&(!clawbottom))
-		{
-			ray = ray*.3;
-			claw.Set(ray);
-		}
 		// determine tilt
 
-
+/*
 		gmag = xVal*xVal+yVal*yVal+zVal*zVal;
 		if ((gmag<gmax*gmax)&&(gmag>gmin*gmin)) { //validate
 			gmag = pow(gmag,0.5);
@@ -318,74 +332,30 @@ private:
 			By = -sin(tilt_phi)*Bmag + cos(tilt_phi)*(cos(tilt_theta)*By+sin(tilt_theta)*Bz);
 			heading = 180.0*atan(By/Bx)/pi;
 		}
+	*/
 		// end compute heading
-		//button mappings : GAMEPAD
 
 
-		//X
-		if(gamePad.GetRawButton(1))
-		{
-			//getHeading();
-		}
-		//A
-		if(gamePad.GetRawButton(2))
-		{
-			ArduinoRW(0xA);
-		}
-		//B
-		if(gamePad.GetRawButton(3))
-		{
+		if(gamePad.GetRawButton(X)){ }
+		if(gamePad.GetRawButton(A)){ArduinoRW(0xA);}
+		if(gamePad.GetRawButton(B)){ }
+		if(gamePad.GetRawButton(Y)){ArduinoRW(0xC);}
+		if(gamePad.GetRawButton(LB)){ }
+		if(gamePad.GetRawButton(RB)){ }
+		if(gamePad.GetRawButton(Sel)){ }
+		if(gamePad.GetRawButton(Sta)){arduinoReset.Set(0);}
+		if(gamePad.GetRawButton(lStick)){ }
+		if(gamePad.GetRawButton(rStick)){ }
 
-		}
-		//Y
-		if(gamePad.GetRawButton(4))
-		{
-			ArduinoRW(0xC);
-		}
-		//LB
-		if(gamePad.GetRawButton(5))
-		{
 
-		}
-		//RB
-		if(gamePad.GetRawButton(6))
-		{
-		}
-		//LT
-		if(gamePad.GetRawButton(7))
-		{
+		#ifdef SRC_GAMEPADD_H_
+		if(gamePad.GetRawButton(Lt)){ }
+		if(gamePad.GetRawButton(Rt)){ }
+		#endif
 
-		}
-		//RT
-		if(gamePad.GetRawButton(8))
-		{
-
-		}
-		//BACK/SEL
-		if(gamePad.GetRawButton(9))
-		{
-
-		}
-		//START
-		if(gamePad.GetRawButton(10))
-		{
-			// momentarily turn on the reset pin.
-			arduinoReset.Set(0);
-		}
-		//L stick
-		if(gamePad.GetRawButton(11))
-		{
-
-		}
-		//R stick
-		if(gamePad.GetRawButton(12))
-		{
-
-		}
 		#ifdef MECHANUM
-			//rx = leftStick.GetX() * sncs - leftStick.GetY() * sncs;
-			//ry = leftStick.GetX() * sncs + leftStick.GetY() * sncs;
-			robotDrive.MecanumDrive_Cartesian(lax*x,lay*x,rax*x);
+			//strafe, rotate, forwardback
+			robotDrive.MecanumDrive_Cartesian(rightStick.GetX()*x,leftStick.GetX()*x,-leftStick.GetY()*x);
 		#endif
 
 		#ifdef TANK
@@ -402,6 +372,10 @@ private:
 		SmartDashboard::PutNumber("Left Drive Throttle",(int)25*lay);
 		SmartDashboard::PutNumber("Left Arm Throttle",(int)25*lay);
 		SmartDashboard::PutNumber("Right Arm Throttle",(int)25*lay);
+
+		SmartDashboard::PutNumber("R ARM DRIVE",rax);
+		SmartDashboard::PutNumber("L ARM DRIVE",lax);
+		SmartDashboard::PutNumber("R PWM",gearMotor.Get());
 
 		SmartDashboard::PutNumber("I2Cmsgs",counti2c);
 
