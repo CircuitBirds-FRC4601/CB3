@@ -13,7 +13,7 @@
 #include "WPILib.h"
 #include "Robot.h"
 #include <math.h>
-#include <fstream>
+//#include <fstream>
 //#include <bitset>
 //#include <string>
 #include <iostream>
@@ -35,7 +35,10 @@
 
 #define CLRFAULTS
 
-float rx,ry,rax,ray,lay,lax, time_auton, pi;
+bool LeftLim = false;
+bool RightLim = false;
+float rx,ry,rax,ray,lay,lax, time_auton, pi, lsz, lsx, lsy;
+float lastcurrent, currentcurrent, maxcurrent;
 float tilt_theta, tilt_phi, gmag, gmin, gmax, Bx, By, Bz, Bmag, Bmin, Bmax, heading;
 int counti2c, switches, autoPeriodicLoops, liftPosn, rightArmPosn, leftArmPosn;
 int leftDrivePosn, rightDrivePosn;
@@ -43,7 +46,6 @@ int leftDrivePosn, rightDrivePosn;
 int firstDrive, secondDrive, RarmPreset,LarmPreset,speed_x,speed_y, backup;
 int delay, lift_this_high, drop_this_low,  behavior_auton, completel, completer;
 uint8_t data;
-long EncoderOffset1,EncoderOffset2,EncoderOffset3;
 // all of these booleans are images of the limit microswitches. '1' is switch closed
 bool lifttop, liftbottom, LarmL, LarmR, RarmL, RarmR, clawbottom, driveDone;
 //int lastLiftCount,currentLiftCount;
@@ -53,7 +55,7 @@ bool lifttop, liftbottom, LarmL, LarmR, RarmL, RarmR, clawbottom, driveDone;
 
 class Robot: public IterativeRobot
 {
-	Joystick gamePad,leftStick,rightStick;
+	Joystick gamePad,leftStick/*,rightStick*/;
 	LiveWindow *lw;
 	int autoLoopCounter;
 	PowerDistributionPanel PDB;
@@ -66,13 +68,13 @@ class Robot: public IterativeRobot
 	Encoder liftPos,leftArmEncoder,rightArmEncoder,lDriveEncoder,rDriveEncoder;
 	Accelerometer *accel;
 	DigitalOutput arduinoReset;
-	Timer timed;
+	DigitalInput LeftLimit, RightLimit;
 
 public:
 	Robot() :
 		gamePad(0),
 		leftStick(1),
-		rightStick(2),
+		//rightStick(2),
 		lw(),
 		autoLoopCounter(0),
 		PDB(),
@@ -93,7 +95,9 @@ public:
 		rightArmEncoder(4,5),
 		lDriveEncoder(2,3),
 		rDriveEncoder(0,1),
-		arduinoReset(14)
+		arduinoReset(14),
+		LeftLimit(10),
+		RightLimit(11)
 {
 		PDB.InitTable(hi);
 		PDB.StartLiveWindowMode();
@@ -123,7 +127,7 @@ private:
 		leftArmEncoder.Reset();
 		lDriveEncoder.Reset();
 		rDriveEncoder.Reset();
-		timed.Reset();
+
 		accel = new BuiltInAccelerometer(Accelerometer::Range::kRange_4G);
 		// setup values
 		gmax=12.0;   //  in m/s^2
@@ -168,7 +172,6 @@ private:
 		leftArmEncoder.Reset();
 		lDriveEncoder.Reset();
 		rDriveEncoder.Reset();
-		timed.Reset();
 		//drive spec init
 		//     Here driving forward for 'firstDrive' then picking up tote and driving for secondDrive' '
 		firstDrive=48;
@@ -203,9 +206,9 @@ private:
 	#define AUTON_POS_STOP_THRESHOLD 100
 	//76 inches: 19 in/rev,360 pulses/rev
 	//the 4 is arbitrary
-	#define AUTON_POS_TARGET 360*50
-	#define AUTON_LEFT_DRIVE_FAST .5
-	#define AUTON_RIGHT_DRIVE_FAST .55
+	#define AUTON_POS_TARGET 360*40
+	#define AUTON_LEFT_DRIVE_FAST .6
+	#define AUTON_RIGHT_DRIVE_FAST .6
 	#define AUTON_LEFT_DRIVE_SLOW .1
 	#define AUTON_RIGHT_DRIVE_SLOW .1
 
@@ -248,17 +251,20 @@ private:
 		lDriveEncoder.Reset();
 		rDriveEncoder.Reset();
 		data = 0 ;
+		maxcurrent = 0;
 	}
 	void TeleopPeriodic()
 	{
 		arduinoReset.Set(1);
 
-		const int x = 1;
+		//ArduinoRW(0xC);
+		float x = .85;
 
 		lax = gamePad.GetRawAxis(lXA);
 		lay = gamePad.GetRawAxis(lYA);
 		rax = gamePad.GetRawAxis(rXA);
 		ray = gamePad.GetRawAxis(rYA);
+
 
 		#ifdef SRC_GAMEPADX_H_
 		lat = gamePad.GetRawAxis(lTA);
@@ -266,15 +272,22 @@ private:
 		gamePad.SetRumble(gamePad.kLeftRumble,rat);
 		#endif
 
-		/*Threshholds*/
-		const int thresh = .5;
+		lsz = leftStick.GetZ();
+		lsx = leftStick.GetX();
+		lsy = -leftStick.GetY();
 
-		if(abs(lax) < thresh){
+		/*Threshholds*/
+		const float GPthresh = .9;
+		const float Jthresh = .1;
+
+		/*
+		if(abs(lax) < GPthresh){
 			lax = 0;
 		}
-		if(abs(rax) < thresh){
-			rax = 0;
+		if(abs(ray) < GPthresh){
+			ray = 0;
 		}
+*/
 
 		/*tilt*/
 
@@ -282,7 +295,8 @@ private:
 		double yVal = accel->GetY();
 		double zVal = accel->GetZ();
 
-
+		LeftLim = LeftLimit.Get();
+		RightLim = RightLimit.Get();
 
 		if ((lay>0)&&(!lifttop)&&!gamePad.GetRawButton(RB))
 		{
@@ -302,17 +316,23 @@ private:
 		}
 		if ((rax>0)&&(!RarmR)&&!gamePad.GetRawButton(LB))
 		{
-			rightArm.Set(rax);
+			rightArm.Set(-rax);
 		}
 		if ((rax<0)&&(!RarmR)&&!gamePad.GetRawButton(LB))
 		{
-			rightArm.Set(rax);
+			rightArm.Set(-rax);
 		}
-		if ((rax<0)&&(!RarmL))
+		if ((rax>0)&&(!RarmR))
 		{
-			rightArm.Set(rax);
+			//rightArm.Set(rax);
+		}
+		if ((lax<0)&&(!LarmL))
+		{
+		//	leftArm.Set(lax);
 		}
 		// determine tilt
+
+
 
 /*
 		gmag = xVal*xVal+yVal*yVal+zVal*zVal;
@@ -337,9 +357,9 @@ private:
 
 
 		if(gamePad.GetRawButton(X)){ }
-		if(gamePad.GetRawButton(A)){ArduinoRW(0xA);}
+		if(gamePad.GetRawButton(A)){ }
 		if(gamePad.GetRawButton(B)){ }
-		if(gamePad.GetRawButton(Y)){ArduinoRW(0xC);}
+		if(gamePad.GetRawButton(Y)){ }
 		if(gamePad.GetRawButton(LB)){ }
 		if(gamePad.GetRawButton(RB)){ }
 		if(gamePad.GetRawButton(Sel)){ }
@@ -347,6 +367,8 @@ private:
 		if(gamePad.GetRawButton(lStick)){ }
 		if(gamePad.GetRawButton(rStick)){ }
 
+		if(!leftStick.GetButton(leftStick.kTriggerButton)){lsz = 0;}
+		if(leftStick.GetRawButton(2)){x = .4;}
 
 		#ifdef SRC_GAMEPADD_H_
 		if(gamePad.GetRawButton(Lt)){ }
@@ -355,17 +377,24 @@ private:
 
 		#ifdef MECHANUM
 			//strafe, rotate, forwardback
-			robotDrive.MecanumDrive_Cartesian(rightStick.GetX()*x,leftStick.GetX()*x,-leftStick.GetY()*x);
+			robotDrive.MecanumDrive_Cartesian(-lsx*x,-lsz*x,lsy*x);
 		#endif
 
 		#ifdef TANK
 			robotDrive.TankDrive(-leftStick.GetY(),-rightStick.GetY());
 		#endif
 
+		currentcurrent = PDB.GetCurrent(14);
+
+		if(currentcurrent > maxcurrent)
+		{
+			maxcurrent = currentcurrent;
+		}
+
 		SmartDashboard::PutNumber("PDB Temp",(float)PDB.GetTemperature());
 		SmartDashboard::PutNumber("PDB Current Lift",PDB.GetCurrent(2));
 		SmartDashboard::PutNumber("PDB Current Left Arm",PDB.GetCurrent(3));
-		SmartDashboard::PutNumber("PDB Current Right Arm",PDB.GetCurrent(12));
+		SmartDashboard::PutNumber("PDB Lift Current",maxcurrent);
 
 		SmartDashboard::PutNumber("Lift Throttle",(int)25*lay);
 		SmartDashboard::PutNumber("Right Drive Throttle",(int)25*lay);
@@ -373,9 +402,6 @@ private:
 		SmartDashboard::PutNumber("Left Arm Throttle",(int)25*lay);
 		SmartDashboard::PutNumber("Right Arm Throttle",(int)25*lay);
 
-		SmartDashboard::PutNumber("R ARM DRIVE",rax);
-		SmartDashboard::PutNumber("L ARM DRIVE",lax);
-		SmartDashboard::PutNumber("R PWM",gearMotor.Get());
 
 		SmartDashboard::PutNumber("I2Cmsgs",counti2c);
 
@@ -388,6 +414,13 @@ private:
 		SmartDashboard::PutNumber("tilt theta", 180.0*tilt_theta/pi);
 		SmartDashboard::PutNumber("tilt phi", 180.0*tilt_phi/pi);
 		SmartDashboard::PutNumber("accel. magnitude", gmag);
+
+		SmartDashboard::PutNumber("POV Number",leftStick.GetPOV());
+		SmartDashboard::PutNumber("Button Number",leftStick.GetButton(leftStick.kNumButtonTypes));
+		SmartDashboard::PutBoolean("R arm Limit", RightLim);
+		SmartDashboard::PutBoolean("L arm limit",LeftLim);
+
+
 	}
 
 	void DisabledInit()

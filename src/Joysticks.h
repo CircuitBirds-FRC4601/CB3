@@ -10,7 +10,7 @@
 #ifndef SRC_JOYSTICKS_H_
 #define SRC_JOYSTICKS_H_
 
-
+int lZA = 0;
 
 
 #endif /* SRC_JOYSTICKS_H_ */

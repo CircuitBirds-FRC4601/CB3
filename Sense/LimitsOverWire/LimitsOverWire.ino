@@ -41,6 +41,7 @@ void loop()
   {
     digitalWrite(13, HIGH);
     if (!digitalRead(i)) payloadReturn |= binary[i - 3]; //The magic happens here
+    
   }
 }
 
